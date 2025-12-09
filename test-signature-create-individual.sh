@@ -12,14 +12,16 @@ echo -e "${BLUE}🔐 Testing signatureCreateStatement_forIndividual.docx${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════${NC}"
 echo ""
 
-CARBONE_URL="http:TEMPLATE_PATH="./templates/signature/signatureCreateStatement_forIndividual.docx"
+CARBONE_URL="http://localhost:3001/api/v1/generate"
+TEMPLATE_PATH="./templates/signature/signatureCreateStatement_forIndividual.docx"
 RESULT_FILE="./signatureCreateStatement-TEST.pdf"
 
 # Проверки
 echo -n "✓ Checking carbone-service... "
-if ! curl -s http:    echo -e "${RED}✗ NOT RUNNING${NC}"
+if ! curl -s http://localhost:3001/api/v1/health >/dev/null 2>&1; then
+    echo -e "${RED}✗ NOT RUNNING${NC}"
     echo ""
-    echo "Start it: docker-compose up -d"
+    echo "Start it: npm run dev"
     exit 1
 fi
 echo -e "${GREEN}OK${NC}"
@@ -41,7 +43,8 @@ echo ""
 
 # Полные реальные данные для заявления на создание ЭЦП (физлицо)
 # На основе типичных полей для таких документов
-DATA='{
+DATA=$(cat <<'EOF'
+{
   "fullName": "Садыков Арман Болатұлы",
   "name": "Арман",
   "firstName": "Арман",
@@ -138,7 +141,9 @@ DATA='{
   "applicationNumber": "ЭЦП-2025-11-001",
   "statementNumber": "ЭЦП-2025-11-001",
   "registrationNumber": "ЭЦП-2025-11-001"
-}'
+}
+EOF
+)
 
 echo -e "${BLUE}📊 Data being sent:${NC}"
 echo "$DATA" | python3 -m json.tool 2>/dev/null || echo "$DATA"
@@ -174,7 +179,7 @@ if [ "$HTTP_CODE" = "200" ]; then
     echo -e "${GREEN}✅ SUCCESS!${NC}"
     echo ""
     echo "📄 Generated: $RESULT_FILE"
-    echo "📏 Size: $size_human ($size_bytes bytes)"
+    printf '📏 Size: %s (%s bytes)\n' "$size_human" "$size_bytes"
     echo ""
 
     echo -e "${BLUE}💡 Opening PDF...${NC}"
@@ -194,7 +199,7 @@ if [ "$HTTP_CODE" = "200" ]; then
     echo "   ✓ Адрес: Шымкент қаласы, Абай ауданы, Тәуелсіздік даңғылы 25, 12 пәтер"
     echo ""
     echo "   Contact Information:"
-    echo "   ✓ Телефон: +7 (778) 890-12-34"
+    printf '   ✓ Телефон: +7 (778) 890-12-34\n'
     echo "   ✓ Email: a.sadykov@example.kz"
     echo ""
     echo "   Document Information:"
@@ -205,7 +210,7 @@ if [ "$HTTP_CODE" = "200" ]; then
     echo "   Application Information:"
     echo "   ✓ Дата заявления: 20.11.2025"
     echo "   ✓ Номер: ЭЦП-2025-11-001"
-    echo "   ✓ Срок действия: 2 года (до 20.11.2027)"
+    printf '   ✓ Срок действия: 2 года (до 20.11.2027)\n'
     echo ""
     echo -e "${YELLOW}❓ Check:${NC}"
     echo "   • Are there spaces between words?"

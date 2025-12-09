@@ -6,8 +6,19 @@ const path = require('path');
 const os = require('os');
 
 function initCarbone() {
+    // Set LibreOffice path if not already set (e.g., in Docker)
     if (!process.env.LIBREOFFICE_BIN) {
-        process.env.LIBREOFFICE_BIN = '/usr/lib/libreoffice/program/soffice';
+        const platform = os.platform();
+        if (platform === 'darwin') {
+            // macOS - both Intel and Apple Silicon
+            process.env.LIBREOFFICE_BIN = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
+        } else if (platform === 'win32') {
+            // Windows
+            process.env.LIBREOFFICE_BIN = 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
+        } else {
+            // Linux - default path
+            process.env.LIBREOFFICE_BIN = '/usr/lib/libreoffice/program/soffice';
+        }
     }
 
     carbone.set({
@@ -17,6 +28,7 @@ function initCarbone() {
 
     logger.info(`Carbone initialized with ${config.carbone.factories} factories`);
     logger.info(`LibreOffice path: ${process.env.LIBREOFFICE_BIN}`);
+    logger.info(`Platform: ${os.platform()}`);
 }
 
 function generateDocument(templateBuffer, templateName, data, options = {}) {
