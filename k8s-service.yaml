@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: carbone-service
+  namespace: dev-forteid  # Измени на qa-forteid для QA
+  labels:
+    app: carbone-service
+spec:
+  type: ClusterIP  # Внутренний сервис (не доступен извне)
+  selector:
+    app: carbone-service  # Ищет поды с этим label
+  ports:
+    - name: http
+      port: 3001        # Порт на который обращаются другие сервисы
+      targetPort: 3001  # Порт внутри контейнера
+      protocol: TCP
+  sessionAffinity: None
