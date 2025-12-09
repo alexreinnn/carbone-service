@@ -6,8 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Carbone Service is a Node.js microservice that generates PDF documents from templates (.docx, .odt, .xlsx, .ods) using
 the [Carbone](https:
-**Important Platform Limitation**: LibreOffice does not work natively on Mac M1/M2. Always use Docker for local
-development and testing on Apple Silicon.
+## Local Development Setup
+
+**Prerequisites**: Install LibreOffice **7.5.1.1** on your local machine before running the service.
+
+**IMPORTANT - Version Compatibility**:
+- This project uses **Carbone 3.5.6** which is officially tested with **LibreOffice 7.5.1.1**
+- LibreOffice 7.6+ may cause PDF generation issues (corrupted files, blank pages, incorrect rendering)
+- Always use LibreOffice 7.5.x for development to match production environment
+
+**Installation**:
+
+- **macOS** (Intel and Apple Silicon): Download LibreOffice 7.5.1.1 from [LibreOffice Archive](https://downloadarchive.documentfoundation.org/libreoffice/old/7.5.1.1/mac/x86_64/) and install the .dmg file
+- **Linux**: Download from [LibreOffice Archive](https://downloadarchive.documentfoundation.org/libreoffice/old/7.5.1.1/deb/x86_64/). Do NOT use PPA versions (they lack Python which is required by Carbone)
+- **Windows**: Download from [LibreOffice Archive](https://downloadarchive.documentfoundation.org/libreoffice/old/7.5.1.1/win/x86_64/)
+
+Carbone automatically detects LibreOffice in standard installation paths:
+- macOS: `/Applications/LibreOffice.app/Contents/MacOS/soffice`
+- Linux: `/usr/bin/soffice`, `/usr/lib/libreoffice/program/soffice`
+- Windows: `C:\Program Files\LibreOffice\program\soffice.exe`
+
+**Docker alternative**: If you prefer not to install LibreOffice locally, use Docker (see Docker section below).
 
 ## Development Commands
 
@@ -78,7 +97,11 @@ curl -X POST http:  -F "template=@template.docx" \
 
 **LibreOffice Integration**:
 
-- Path hardcoded in Dockerfile: `LIBREOFFICE_BIN=/usr/lib/libreoffice/program/soffice`
+- Docker uses explicit path: `LIBREOFFICE_BIN=/opt/libreoffice7.5/program/soffice` (Dockerfile:41)
+- Local development auto-detects based on OS (carbone.service.js:10-22):
+  - macOS: `/Applications/LibreOffice.app/Contents/MacOS/soffice`
+  - Windows: `C:\Program Files\LibreOffice\program\soffice.exe`
+  - Linux: `/usr/lib/libreoffice/program/soffice`
 - 10-second startup delay in server.js to ensure factories are ready
 - Increase `factories` count for better performance under load
 
@@ -120,6 +143,8 @@ No authentication is required (internal service-to-service communication).
 
 ## Troubleshooting
 
+**Corrupted PDF / Blank pages / Incorrect rendering**: This is almost always a LibreOffice version incompatibility issue. Carbone 3.5.6 is tested with LibreOffice 7.5.1.1. Check your LibreOffice version with `/Applications/LibreOffice.app/Contents/MacOS/soffice --version` (macOS) or `soffice --version` (Linux). If using 7.6+, downgrade to 7.5.1.1 from [LibreOffice Archive](https://downloadarchive.documentfoundation.org/libreoffice/old/7.5.1.1/).
+
 **Slow generation times**: Increase `factories` in `src/config/app.config.js` (line 28). More workers = higher parallelism but more memory usage.
 
 **LibreOffice crashes**: Check Docker container logs. LibreOffice requires specific system libraries listed in Dockerfile (lines 5-19).
@@ -127,3 +152,5 @@ No authentication is required (internal service-to-service communication).
 **Empty PDF output**: Usually indicates template syntax errors or missing data fields. Check logs for Carbone error messages.
 
 **File size limits**: Maximum 200MB enforced at middleware level (`src/middleware/file-upload.js`). This matches the limit in document-core.
+
+**LibreOffice from PPA doesn't work**: PPA versions of LibreOffice don't include Python, which is mandatory for Carbone. Download and install the official .deb/.rpm packages from LibreOffice Archive instead.
