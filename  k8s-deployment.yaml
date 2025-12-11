@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carbone-service
+  namespace: dev-forteid  # Измени на qa-forteid для QA
+  labels:
+    app: carbone-service
+    version: v1
+spec:
+  replicas: 1  # Для DEV достаточно 1, для QA/PROD можно 2-3
+  selector:
+    matchLabels:
+      app: carbone-service
+  template:
+    metadata:
+      labels:
+        app: carbone-service
+        version: v1
+    spec:
+      containers:
+        - name: carbone-service
+          image: registry.gitlab.fortebank.com/forte-id/carbone-service:latest  # ЗАМЕНИ НА СВОЙ REGISTRY
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+              name: http
+              protocol: TCP
+
+          # Environment variables
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3001"
+            - name: LIBREOFFICE_BIN
+              value: "/opt/libreoffice7.5/program/soffice"
+            - name: SOFFICE_PATH
+              value: "/opt/libreoffice7.5/program"
+
+          # Resource limits
+          resources:
+            requests:
+              memory: "512Mi"    # Минимум памяти
+              cpu: "250m"        # 0.25 CPU
+            limits:
+              memory: "1Gi"      # Максимум памяти
+              cpu: "1000m"       # 1 CPU
+
+          # Liveness probe - проверка что контейнер жив
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3001
+            initialDelaySeconds: 40  # Подождать 40 сек после старта
+            periodSeconds: 30        # Проверять каждые 30 сек
+            timeoutSeconds: 10       # Таймаут 10 сек
+            failureThreshold: 3      # 3 неудачи = restart
+
+          # Readiness probe - проверка что контейнер готов принимать трафик
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3001
+            initialDelaySeconds: 20  # Подождать 20 сек
+            periodSeconds: 10        # Проверять каждые 10 сек
+            timeoutSeconds: 5        # Таймаут 5 сек
+            failureThreshold: 3      # 3 неудачи = не готов
+
+          # Security context
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # LibreOffice нужно писать временные файлы
+            capabilities:
+              drop:
+                - ALL
+
+      # Image pull secrets (если нужны для registry)
+      # imagePullSecrets:
+      # - name: gitlab-registry-secret
+
+      restartPolicy: Always
+---
+# HorizontalPodAutoscaler - автомасштабирование (опционально, для QA/PROD)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: carbone-service-hpa
+  namespace: dev-forteid  # Измени на qa-forteid для QA
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: carbone-service
+  minReplicas: 1
+  maxReplicas: 3  # Максимум 3 пода
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Когда CPU > 70% - добавить под
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Когда память > 80% - добавить под
